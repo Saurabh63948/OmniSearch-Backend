@@ -32,15 +32,11 @@ def signup(user:UserCreate , db:Session=Depends(get_db)):
 
 # ---2 .Login logic 
 @router.post("/login")
-def login(
-    form_data: OAuth2PasswordRequestForm = Depends(), 
-    db: Session = Depends(get_db)
-):
-   
-    db_user = db.query(User).filter(User.email == form_data.username).first()
+def login(user_credentials:UserCreate,db:Session =Depends(get_db)):
+    db_user = db.query(User).filter(User.email == user_credentials.username).first()
 
     # Password verify karein
-    if not db_user or not verify_password(form_data.password, db_user.hashed_password):
+    if not db_user or not verify_password(user_credentials.password, db_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
