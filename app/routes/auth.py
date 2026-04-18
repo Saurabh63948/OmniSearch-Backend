@@ -33,7 +33,7 @@ def signup(user:UserCreate , db:Session=Depends(get_db)):
 # ---2 .Login logic 
 @router.post("/login")
 def login(user_credentials:UserCreate,db:Session =Depends(get_db)):
-    db_user = db.query(User).filter(User.email == user_credentials.username).first()
+    db_user = db.query(User).filter(User.email == user_credentials.email).first()
 
     # Password verify karein
     if not db_user or not verify_password(user_credentials.password, db_user.hashed_password):
