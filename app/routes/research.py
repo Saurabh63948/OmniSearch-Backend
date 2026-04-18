@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 import uuid
-from typing import Optional, List
+from typing import Optional
 
 from ..database import get_db
 from ..auth_utils import get_current_user
@@ -32,8 +32,13 @@ async def start_research(
             title=f"Research: {topic[:30]}..."
         )
         db.add(session)
+        db.flush()  # ← id generate hone ke liye before commit
 
-    user_msg = Message(session_id=session.id, role="user", content=topic)
+    user_msg = Message(
+        session_id=session.id,
+        role="user",
+        content=topic
+    )
     db.add(user_msg)
     db.commit()
 
@@ -46,7 +51,10 @@ async def start_research(
         )
         db.add(agent_msg)
         db.commit()
-        return {"session_id": str(session.id), "report": result["report"]}
+        return {
+            "session_id": str(session.id),  # ← UUID → string
+            "report": result["report"]
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -57,11 +65,17 @@ def get_all_sessions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    sessions = db.query(ChatSession).filter(
-        ChatSession.user_id == current_user.id
-    ).order_by(ChatSession.created_at.desc()).all()  # ✅ .first() → .all()
+    try:
+        sessions = db.query(ChatSession).filter(
+            ChatSession.user_id == current_user.id
+        ).order_by(ChatSession.created_at.desc()).all()
 
-    return [{"id": str(s.id), "title": s.title} for s in sessions]
+        return [{"id": str(s.id), "title": s.title} for s in sessions]
+    
+    except Exception as e:
+        # Yeh terminal mein exact error print karega
+        print(f"❌ get_all_sessions error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/sessions/{session_id}")
@@ -100,4 +114,10 @@ def get_session_messages(
             detail="Session not found or unauthorized"
         )
 
-    return [{"role": m.role, "content": m.content} for m in session.messages]
+    return [
+        {
+            "role": m.role,
+            "content": m.content
+        }
+        for m in session.messages
+    ]
